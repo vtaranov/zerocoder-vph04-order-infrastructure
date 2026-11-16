@@ -2,16 +2,14 @@
 # Run on the VPS after docker login. Creates only a disposable test container.
 set -eu
 cd "$(dirname "$0")/.."
-set -a
-. ./.env
-set +a
-image="$PUBLIC_HOST:$HTTPS_PORT/vph04-smoke:watchtower-test"
+registry_host=$(python3 -c 'from pathlib import Path; e=dict(line.split("=",1) for line in Path(".env").read_text().splitlines() if "=" in line and not line.startswith("#")); print(e["PUBLIC_HOST"]+":"+e.get("HTTPS_PORT","18443"))')
+image="$registry_host/vph04-smoke:watchtower-test"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 make_image() {
   printf 'FROM busybox:1.37\nLABEL homework.version="%s"\nCMD ["sleep", "86400"]\n' "$1" > "$tmp/Dockerfile"
   docker build --quiet -t "$image" "$tmp" >/dev/null
-  docker tag "$image" "$PUBLIC_HOST:$HTTPS_PORT/vph04-smoke:v$1"
+  docker tag "$image" "$registry_host/vph04-smoke:v$1"
   docker --config secrets push "$image" >/dev/null
 }
 make_image 1
